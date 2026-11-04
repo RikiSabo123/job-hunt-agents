@@ -1,0 +1,57 @@
+name: Daily job hunt
+
+on:
+  schedule:
+    - cron: "30 5 * * 0-5"   # Sun-Fri, 05:30 UTC (07:30 Israel winter time)
+  workflow_dispatch:          # "Run workflow" button for manual runs
+
+jobs:
+  run-agents:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      # The shared board (jobs.db) is kept between runs so jobs are never sent twice.
+      - uses: actions/cache/restore@v4
+        with:
+          path: jobs.db
+          key: jobs-db-${{ github.run_id }}
+          restore-keys: jobs-db-
+
+      - name: Run the agents
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PROFILE_MD: ${{ secrets.PROFILE_MD }}
+          MY_EMAIL: ${{ secrets.MY_EMAIL }}
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          # Sends real email only once the Gmail app password secret exists.
+          DRY_RUN: ${{ secrets.GMAIL_APP_PASSWORD == '' && 'true' || 'false' }}
+          PROVIDER: gemini
+          GEMINI_MODEL: gemini-3.8-flash
+        run: python orchestrator.py
+
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: jobs.db
+          key: jobs-db-${{ github.run_id }}
+
+      # CVs and the email are also downloadable from the run page for 14 days.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results
+          path: |
+            output/
+            outbox/
+          retention-days: 14
+          if-no-files-found: ignore
