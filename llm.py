@@ -35,25 +35,42 @@ def _gemini():
     return _clients["gemini"]
 
 
+# If the main model is overloaded or unavailable, the next one in the list is tried.
+GEMINI_FALLBACKS = [m.strip() for m in os.getenv(
+    "GEMINI_FALLBACKS", "gemini-flash-latest,gemini-flash-lite-latest").split(",") if m.strip()]
+
+
 def _ask_gemini(system: str, prompt: str, max_tokens: int, web: bool = False) -> str:
     from google.genai import types
     tools = [types.Tool(google_search=types.GoogleSearch())] if (web and GEMINI_GROUNDING) else None
     cfg = types.GenerateContentConfig(system_instruction=system, max_output_tokens=max_tokens,
                                       tools=tools)
-    for attempt in range(5):
-        try:
-            resp = _gemini().models.generate_content(model=GEMINI_MODEL, contents=prompt, config=cfg)
-            return resp.text or ""
-        except Exception as e:
-            # 429 = free-tier rate limit, 503 = model overloaded. Both are temporary: wait and retry.
-            msg = str(e)
-            if any(code in msg for code in ("429", "RESOURCE_EXHAUSTED", "503", "UNAVAILABLE")):
-                wait = 30 * (attempt + 1)
-                print(f"   (Gemini busy or limit hit, waiting {wait}s and retrying...)")
-                time.sleep(wait)
-                continue
-            raise
-    raise RuntimeError("Gemini is unavailable right now (busy or daily quota used up). Try again later.")
+    models = [GEMINI_MODEL] + [m for m in GEMINI_FALLBACKS if m != GEMINI_MODEL]
+    errors = []
+    for model in models:
+        for attempt in range(3):
+            try:
+                resp = _gemini().models.generate_content(model=model, contents=prompt, config=cfg)
+                return resp.text or ""
+            except Exception as e:
+                msg = str(e)
+                if any(c in msg for c in ("503", "UNAVAILABLE", "500", "INTERNAL")):
+                    wait = 20 * (attempt + 1)  # overloaded: wait, then retry the same model
+                    print(f"   ({model} is busy [503], waiting {wait}s...)")
+                    time.sleep(wait)
+                    continue
+                if any(c in msg for c in ("429", "RESOURCE_EXHAUSTED")):
+                    print(f"   ({model}: free-tier quota hit [429], trying next model...)")
+                    errors.append(f"{model}: 429")
+                    break
+                if any(c in msg for c in ("404", "NOT_FOUND")):
+                    print(f"   ({model}: not available [404], trying next model...)")
+                    errors.append(f"{model}: 404")
+                    break
+                raise
+        else:
+            errors.append(f"{model}: still busy after retries")
+    raise RuntimeError("Gemini unavailable: " + "; ".join(errors))
 
 
 def _ask_anthropic(system: str, prompt: str, web: bool, max_tokens: int) -> str:
