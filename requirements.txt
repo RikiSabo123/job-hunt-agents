@@ -1,0 +1,6 @@
+google-genai>=1.0
+ddgs>=9.0
+python-docx>=1.1
+python-dotenv>=1.0
+# Only for the paid mode (PROVIDER=anthropic):
+# anthropic>=0.40

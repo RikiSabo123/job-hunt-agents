@@ -1,0 +1,6 @@
+.env
+profile.md
+jobs.db
+output/
+outbox/
+__pycache__/
