@@ -45,14 +45,15 @@ def _ask_gemini(system: str, prompt: str, max_tokens: int, web: bool = False) ->
             resp = _gemini().models.generate_content(model=GEMINI_MODEL, contents=prompt, config=cfg)
             return resp.text or ""
         except Exception as e:
-            # Free tier = low per-minute limits. Wait and retry instead of crashing.
-            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-                wait = 20 * (attempt + 1)
-                print(f"   (free-tier limit hit, waiting {wait}s...)")
+            # 429 = free-tier rate limit, 503 = model overloaded. Both are temporary: wait and retry.
+            msg = str(e)
+            if any(code in msg for code in ("429", "RESOURCE_EXHAUSTED", "503", "UNAVAILABLE")):
+                wait = 30 * (attempt + 1)
+                print(f"   (Gemini busy or limit hit, waiting {wait}s and retrying...)")
                 time.sleep(wait)
                 continue
             raise
-    raise RuntimeError("Gemini free-tier limit: try again later (daily quota may be used up).")
+    raise RuntimeError("Gemini is unavailable right now (busy or daily quota used up). Try again later.")
 
 
 def _ask_anthropic(system: str, prompt: str, web: bool, max_tokens: int) -> str:

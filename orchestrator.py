@@ -99,14 +99,24 @@ def run_boss(board: Board):
     print("Stopped: reached MAX_BOSS_STEPS.")
 
 
+def _safe(label: str, fn, *args):
+    """Run one worker; a failure is reported but doesn't stop the rest of the team."""
+    try:
+        print(fn(*args))
+        return True
+    except Exception as e:
+        print(f"ERROR in {label}: {e}")
+        return False
+
+
 def run_pipeline(board: Board):
     """Same team, fixed order, no manager. Good for debugging one stage at a time."""
-    print(workers.scout(board))
-    print(workers.matcher_batch(board, [j["id"] for j in board.by_status("new")]))
+    _safe("scout", workers.scout, board)
+    _safe("matcher", workers.matcher_batch, board, [j["id"] for j in board.by_status("new")])
     for job in board.by_status("matched")[: config.MAX_CVS_PER_RUN]:
-        print(workers.researcher(board, job["id"]))
-        print(workers.cv_writer(board, job["id"]))
-    print(workers.sender(board))
+        if _safe("researcher", workers.researcher, board, job["id"]):
+            _safe("cv_writer", workers.cv_writer, board, job["id"])
+    _safe("sender", workers.sender, board)
 
 
 if __name__ == "__main__":
