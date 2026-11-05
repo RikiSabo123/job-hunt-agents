@@ -115,8 +115,10 @@ def run_pipeline(board: Board):
         # Fail the run so the next scheduled attempt of the day tries again.
         raise SystemExit("Scout failed - no search this run. Exiting with an error so a backup run retries.")
     _safe("matcher", workers.matcher_batch, board, [j["id"] for j in board.by_status("new")])
-    for job in board.by_status("matched")[: config.MAX_CVS_PER_RUN]:
-        if _safe("researcher", workers.researcher, board, job["id"]):
+    # Jobs researched in an earlier run whose CV failed get their CV first.
+    todo = board.by_status("researched") + board.by_status("matched")
+    for job in todo[: config.MAX_CVS_PER_RUN]:
+        if job["status"] == "researched" or _safe("researcher", workers.researcher, board, job["id"]):
             _safe("cv_writer", workers.cv_writer, board, job["id"])
     _safe("sender", workers.sender, board)
 
