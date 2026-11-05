@@ -111,7 +111,9 @@ def _safe(label: str, fn, *args):
 
 def run_pipeline(board: Board):
     """Same team, fixed order, no manager. Good for debugging one stage at a time."""
-    _safe("scout", workers.scout, board)
+    if not _safe("scout", workers.scout, board):
+        # Fail the run so the next scheduled attempt of the day tries again.
+        raise SystemExit("Scout failed - no search this run. Exiting with an error so a backup run retries.")
     _safe("matcher", workers.matcher_batch, board, [j["id"] for j in board.by_status("new")])
     for job in board.by_status("matched")[: config.MAX_CVS_PER_RUN]:
         if _safe("researcher", workers.researcher, board, job["id"]):

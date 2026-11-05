@@ -49,11 +49,11 @@ def scout(board: Board, focus: str = "") -> str:
     if llm.PROVIDER != "anthropic" and not llm.GEMINI_GROUNDING:  # free mode: we search, the model reads the results
         queries = SCOUT_QUERIES + ([focus] if focus else [])
         prompt += ("\nSearch results (pick only real, specific job postings from these):\n"
-                   + web_search(queries))
+                   + web_search(queries, per_query=6))
     prompt += ("\nReturn a JSON array of up to 15 postings. Each item: "
                '{"title","company","location","url","source","posted","description"} '
-               "where description is a 3-5 line summary of requirements and responsibilities.")
-    jobs = llm.ask_json(SCOUT_SYSTEM, prompt, web=True)
+               "where description is a 1-2 line summary of requirements.")
+    jobs = llm.ask_json(SCOUT_SYSTEM, prompt, web=True, max_tokens=4000)
     new_ids = [jid for j in jobs if (jid := board.add_job(j))]
     return f"Scout found {len(jobs)} postings, {len(new_ids)} are new: {new_ids}"
 

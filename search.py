@@ -45,6 +45,6 @@ def web_search(queries: list[str], per_query: int = 8) -> str:
             if not url or url in seen:
                 continue
             seen.add(url)
-            lines.append(f"- {r.get('title', '')}\n  {url}\n  {r.get('body', '')}")
+            lines.append(f"- {r.get('title', '')}\n  {url}\n  {(r.get('body') or '')[:200]}")
         time.sleep(1)  # be polite, avoid getting blocked
     return "\n".join(lines) or "(no results)"
