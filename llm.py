@@ -56,7 +56,7 @@ def _ask_gemini(system: str, prompt: str, max_tokens: int, web: bool = False) ->
                 return resp.text or ""
             except Exception as e:
                 msg = str(e)
-                if any(c in msg for c in ("503", "UNAVAILABLE", "500", "INTERNAL")):
+                if any(c in msg for c in ("503", "UNAVAILABLE", "500", "INTERNAL", "504", "DEADLINE_EXCEEDED")):
                     wait = 20 * (attempt + 1)  # overloaded: wait, then retry the same model
                     print(f"   ({model} is busy [503], waiting {wait}s...)")
                     time.sleep(wait)
