@@ -8,7 +8,7 @@ on:
 jobs:
   run-agents:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
@@ -35,6 +35,7 @@ jobs:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           # Sends real email only once the Gmail app password secret exists.
           DRY_RUN: ${{ secrets.GMAIL_APP_PASSWORD == '' && 'true' || 'false' }}
+          PYTHONUNBUFFERED: "1"   # show agent output live in the log
           PROVIDER: gemini
           GEMINI_MODEL: gemini-3.8-flash
         run: python orchestrator.py

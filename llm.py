@@ -31,7 +31,9 @@ def client():
 def _gemini():
     if "gemini" not in _clients:
         from google import genai
-        _clients["gemini"] = genai.Client()  # reads GEMINI_API_KEY
+        from google.genai import types
+        # reads GEMINI_API_KEY; a 2-minute timeout so a stuck request can't hang the whole run
+        _clients["gemini"] = genai.Client(http_options=types.HttpOptions(timeout=120_000))
     return _clients["gemini"]
 
 
