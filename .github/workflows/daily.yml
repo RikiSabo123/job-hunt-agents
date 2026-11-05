@@ -2,31 +2,55 @@ name: Daily job hunt
 
 on:
   schedule:
-    - cron: "30 5 * * 0-5"   # Sun-Fri, 05:30 UTC (07:30 Israel winter time)
+    # GitHub sometimes delays or drops scheduled runs, so there are 3 tries a day (Sun-Fri).
+    # The first one that succeeds wins; the later ones see that and skip.
+    - cron: "17 4 * * 0-5"   # 06:17 Israel (winter time)
+    - cron: "47 5 * * 0-5"   # 07:47 backup
+    - cron: "23 7 * * 0-5"   # 09:23 backup
   workflow_dispatch:          # "Run workflow" button for manual runs
+
+permissions:
+  contents: read
+  actions: read
 
 jobs:
   run-agents:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
+      - name: Skip if today's run already succeeded
+        id: guard
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          today=$(date -u +%Y-%m-%d)   # scheduled runs are all in the morning, same date in UTC and Israel
+          n=$(gh api "repos/${{ github.repository }}/actions/workflows/daily.yml/runs?status=success&created=>=${today}" -q '.total_count')
+          echo "successful runs today: $n"
+          if [ "$n" -gt 0 ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; fi
+
       - uses: actions/checkout@v4
+        if: steps.guard.outputs.skip != 'true'
 
       - uses: actions/setup-python@v5
+        if: steps.guard.outputs.skip != 'true'
         with:
           python-version: "3.12"
           cache: pip
 
-      - run: pip install -r requirements.txt
+      - if: steps.guard.outputs.skip != 'true'
+        run: pip install -r requirements.txt
 
       # The shared board (jobs.db) is kept between runs so jobs are never sent twice.
       - uses: actions/cache/restore@v4
+        if: steps.guard.outputs.skip != 'true'
         with:
           path: jobs.db
           key: jobs-db-${{ github.run_id }}
           restore-keys: jobs-db-
 
       - name: Run the agents
+        if: steps.guard.outputs.skip != 'true'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PROFILE_MD: ${{ secrets.PROFILE_MD }}
@@ -41,14 +65,14 @@ jobs:
         run: python orchestrator.py
 
       - uses: actions/cache/save@v4
-        if: always()
+        if: always() && steps.guard.outputs.skip != 'true'
         with:
           path: jobs.db
           key: jobs-db-${{ github.run_id }}
 
       # CVs and the email are also downloadable from the run page for 14 days.
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && steps.guard.outputs.skip != 'true'
         with:
           name: results
           path: |
