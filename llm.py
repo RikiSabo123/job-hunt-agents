@@ -9,6 +9,10 @@ import re
 import time
 
 PROVIDER = os.getenv("PROVIDER", "gemini").lower()
+# Free providers are tried in this order. Groq is the most stable free option; Gemini is the backup.
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_MODELS = [m.strip() for m in os.getenv(
+    "GROQ_MODELS", "openai/gpt-oss-120b,llama-3.3-70b-versatile").split(",") if m.strip()]
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 # true = Gemini searches Google by itself (works even when your network blocks search engines)
 GEMINI_GROUNDING = os.getenv("GEMINI_GROUNDING", "false").lower() == "true"
@@ -39,7 +43,7 @@ def _gemini():
 
 # If the main model is overloaded or unavailable, the next one in the list is tried.
 GEMINI_FALLBACKS = [m.strip() for m in os.getenv(
-    "GEMINI_FALLBACKS", "gemini-flash-latest,gemini-flash-lite-latest").split(",") if m.strip()]
+    "GEMINI_FALLBACKS", "").split(",") if m.strip()]
 
 
 def _ask_gemini(system: str, prompt: str, max_tokens: int, web: bool = False) -> str:
@@ -75,6 +79,41 @@ def _ask_gemini(system: str, prompt: str, max_tokens: int, web: bool = False) ->
     raise RuntimeError("Gemini unavailable: " + "; ".join(errors))
 
 
+def _ask_groq(system: str, prompt: str, max_tokens: int) -> str:
+    """Groq's OpenAI-compatible API. Free tier: ~30 requests/min, ~1,000/day per model."""
+    import httpx
+    errors = []
+    for model in GROQ_MODELS:
+        for attempt in range(4):
+            body = {"model": model, "max_tokens": max_tokens, "temperature": 0.3,
+                    "messages": [{"role": "system", "content": system},
+                                 {"role": "user", "content": prompt}]}
+            if model.startswith("openai/gpt-oss"):
+                body["reasoning_effort"] = "low"
+            try:
+                r = httpx.post("https://api.groq.com/openai/v1/chat/completions", json=body,
+                               headers={"Authorization": f"Bearer {GROQ_API_KEY}"}, timeout=120)
+            except httpx.HTTPError as e:
+                errors.append(f"{model}: {type(e).__name__}")
+                time.sleep(10)
+                continue
+            if r.status_code == 200:
+                return r.json()["choices"][0]["message"].get("content") or ""
+            if r.status_code in (429, 498, 500, 502, 503):
+                # per-minute token limit or busy: Groq says how long to wait
+                m = re.search(r"try again in ([\d.]+)s", r.text)
+                wait = min(float(m.group(1)) + 2, 65) if m else 20 * (attempt + 1)
+                if "per day" in r.text:  # daily quota for this model is used up
+                    errors.append(f"{model}: daily limit")
+                    break
+                print(f"   ({model} busy/limited [{r.status_code}], waiting {wait:.0f}s...)")
+                time.sleep(wait)
+                continue
+            errors.append(f"{model}: HTTP {r.status_code} {r.text[:120]}")
+            break
+    raise RuntimeError("Groq unavailable: " + "; ".join(errors))
+
+
 def _ask_anthropic(system: str, prompt: str, web: bool, max_tokens: int) -> str:
     messages = [{"role": "user", "content": prompt}]
     kwargs = dict(model=WORKER_MODEL, max_tokens=max_tokens, system=system)
@@ -91,6 +130,11 @@ def ask(system: str, prompt: str, *, web: bool = False, max_tokens: int = 8000) 
     """`web=True` only matters for Anthropic; in free mode the worker passes search results itself."""
     if PROVIDER == "anthropic":
         return _ask_anthropic(system, prompt, web, max_tokens)
+    if GROQ_API_KEY:
+        try:
+            return _ask_groq(system, prompt, max_tokens)
+        except RuntimeError as e:
+            print(f"   ({e} - falling back to Gemini)")
     return _ask_gemini(system, prompt, max_tokens, web)
 
 

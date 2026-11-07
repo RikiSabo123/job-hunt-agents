@@ -52,6 +52,7 @@ jobs:
       - name: Run the agents
         if: steps.guard.outputs.skip != 'true'
         env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PROFILE_MD: ${{ secrets.PROFILE_MD }}
           MY_EMAIL: ${{ secrets.MY_EMAIL }}

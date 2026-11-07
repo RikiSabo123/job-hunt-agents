@@ -2,7 +2,7 @@
 
 A multi-agent system that runs every morning on GitHub Actions, finds fresh junior tech jobs in Israel, checks how well each one fits, researches the company, writes a tailored CV for the best matches, and emails a digest.
 
-Built with Python, Google Gemini (free tier) and an orchestrator–workers architecture.
+Built with Python, free-tier LLMs (Groq, with Google Gemini as fallback) and an orchestrator–workers architecture.
 
 ## Architecture
 
@@ -39,7 +39,7 @@ Built with Python, Google Gemini (free tier) and an orchestrator–workers archi
 
 ## Run on GitHub Actions
 1. Fork or clone this repo.
-2. Add the repository secrets: `GEMINI_API_KEY`, `PROFILE_MD` (your CV as markdown, see `profile.example.md`), `MY_EMAIL`, `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD`.
+2. Add the repository secrets: `GROQ_API_KEY` (free at console.groq.com), `GEMINI_API_KEY` (fallback), `PROFILE_MD` (your CV as markdown, see `profile.example.md`), `MY_EMAIL`, `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD`.
 3. Actions → **Daily job hunt** → **Run workflow**. After that it runs Sunday–Friday at 07:30 Israel time.
 
 Without `GMAIL_APP_PASSWORD` it runs in dry-run mode, and the CVs and email are downloadable from the run's artifacts.
@@ -58,7 +58,7 @@ python orchestrator.py
 | `orchestrator.py` | Orchestrator: LLM tool-use loop (paid) or fixed pipeline (free) |
 | `workers.py` | The five agents and their system prompts |
 | `state.py` | Shared SQLite board |
-| `llm.py` | Provider-agnostic model calls, JSON extraction, retry |
+| `llm.py` | Provider chain (Groq → Gemini, or Claude), JSON extraction, rate-limit-aware retry |
 | `search.py` | Free web search with engine fallback |
 | `cv_docx.py` | Markdown → Word CV |
 | `mailer.py` | Hebrew RTL HTML digest with attachments |

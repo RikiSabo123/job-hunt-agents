@@ -5,7 +5,8 @@
 1. **ליצור ריפו:** ב-github.com לוחצים **New repository**, נותנים שם (למשל `job-hunt-agents`) ולוחצים **Create repository**.
 2. **להעלות את הקבצים:** בדף הריפו לוחצים **uploading an existing file**, גוררים את **כל** הקבצים והתיקיות מהתיקייה המחולצת (כולל התיקייה `.github`) ולוחצים **Commit changes**.
 3. **להוסיף סודות:** Settings → Secrets and variables → Actions → **New repository secret**. מוסיפים כל אחד בנפרד:
-   - `GEMINI_API_KEY`: המפתח מ-aistudio.google.com
+   - `GROQ_API_KEY`: מפתח חינמי מ-console.groq.com (המודל הראשי, היציב יותר)
+   - `GEMINI_API_KEY`: המפתח מ-aistudio.google.com (גיבוי)
    - `PROFILE_MD`: כל התוכן של קובץ `profile.md` שלך (קורות החיים). מעתיקים ומדביקים.
    - `MY_EMAIL`: המייל שאליו יישלח הסיכום
    - `GMAIL_ADDRESS`: כתובת ה-Gmail ששולחת
