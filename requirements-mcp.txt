@@ -1,0 +1,5 @@
+# Only for the MCP server (mcp_server/). The daily pipeline uses requirements.txt.
+# FastMCP lives at mcp.server.fastmcp in the 1.x SDK; 2.x renamed it, so stay below 2.
+# The [cli] extra provides the `mcp dev` command for the MCP Inspector.
+mcp[cli]>=1.2,<2
+pytest>=8.0
