@@ -4,3 +4,5 @@ jobs.db
 output/
 outbox/
 __pycache__/
+mcp_server/demo_jobs.db
+.pytest_cache/

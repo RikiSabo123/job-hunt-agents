@@ -52,6 +52,16 @@ cp profile.example.md profile.md   # your CV
 python orchestrator.py
 ```
 
+## MCP Server
+A read-only MCP server (`mcp_server/`) lets Claude Desktop, Claude Code or Cursor query the board in plain language, for example "What are the gaps in my top 3 matches?". It has four tools (`search_jobs`, `get_job`, `top_matches`, `board_stats`) and never writes to the database.
+
+```bash
+pip install -r requirements-mcp.txt
+python mcp_server/seed_demo.py                      # fictional demo data
+JOBS_DB=mcp_server/demo_jobs.db mcp dev mcp_server/server.py
+```
+Client setup and examples: [mcp_server/README.md](mcp_server/README.md).
+
 ## Project structure
 | File | Role |
 |---|---|
