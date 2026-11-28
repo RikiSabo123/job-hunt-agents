@@ -81,3 +81,12 @@ jobs:
             outbox/
           retention-days: 14
           if-no-files-found: ignore
+
+      # The job board itself, so the MCP server can read the real jobs locally.
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.guard.outputs.skip != 'true'
+        with:
+          name: jobs-db
+          path: jobs.db
+          retention-days: 7
+          if-no-files-found: ignore
